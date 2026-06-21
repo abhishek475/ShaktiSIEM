@@ -11,6 +11,7 @@ from collections import defaultdict
 events = []
 incidents = []
 
+#extract data from a single log_line
 def extract_data(log_line):
     event = {
         "Event_type" : None,
@@ -72,6 +73,7 @@ def extract_data(log_line):
 
     return event
 
+#create incident and append to incidents[] 
 def create_incident(incident_type,severity,username,ip,time_stamp,command,description):
     incident = {
         "Incident_type" : incident_type,
@@ -84,6 +86,7 @@ def create_incident(incident_type,severity,username,ip,time_stamp,command,descri
     }
     incidents.append(incident)
 
+#detects login in between 10 pm and 5am
 def detect_after_hour_login(events):
     for event in events:
         ts = event["Time_stamp"]
@@ -112,20 +115,45 @@ def detect_brute_force(events):
 
                 failed_by_ip[ip]= []
 
-    
-  
-   
+#sensitive commands are flagged
+def detect_sensitive_commands(events):
+    sensitive_commands = {
+    "useradd": ("Account Modification", 80),
+    "adduser": ("Account Modification", 80),
+    "usermod": ("Account Modification", 80),
+    "userdel": ("Account Modification", 80),
 
-                
+    "passwd": ("Credential Modification", 90),
 
-           
+    "visudo": ("Privilege Escalation", 90),
 
-    
+    "rm": ("Log Tampering", 100),
+    "truncate": ("Log Tampering", 100),
 
-    
+    "systemctl stop": ("Security Service Disabled", 100),
 
+    "iptables": ("Firewall Modification", 90),
+    "firewall-cmd": ("Firewall Modification", 90),
 
+    "wget": ("Remote Download", 60),
+    "curl": ("Remote Download", 60),
+    "chmod": ("Permission Modification", 80),
+    "chown": ("Ownership Modification", 80),
 
+    "ssh-keygen": ("SSH Key Modification", 85),
+    "ssh-copy-id": ("SSH Key Modification", 85),
 
-        
+    "crontab": ("Scheduled Task Modification", 75),
+
+    "dnf remove": ("Software Removal", 70),
+    "yum remove": ("Software Removal", 70),
+    "rpm -e": ("Software Removal", 70)
+}
+    for event in events:
+        if event["Event_type"] == "Sudo Session":
+            for cmd,(label,score) in sensitive_commands.items():
+                command = event["Command"]
+                if cmd and cmd in command:
+                    create_incident(label,score,event["Username"],event["IP"],event["Time_stamp"],event["Command"],f'Sensitive command detected:{event["Command"]}')
+                  
 
