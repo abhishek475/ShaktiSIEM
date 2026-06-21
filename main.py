@@ -1,14 +1,15 @@
 """
-Jun 10 23:29:34 localhost sshd[1970]: Failed password for abhishek from ::1 port 52800 ssh2
-Jun 10 23:30:12 localhost sshd[1985]: Accepted password for abhishek from ::1 port 40180 ssh2
-Jun 10 23:31:20 localhost sudo[1961]: abhishek : TTY=pts/0 ; PWD=/home/abhishek ; USER=root ; COMMAND=/bin/tail -f /var/log/secure
-Jun 10 23:31:20 localhost pam_unix(sudo:session): session opened for user root by abhishek(uid=1000)
+Jun 20 02:05:56 localhost sshd-session[2715]: Failed password for invalid user wrongpassword from ::1 port 42068 ssh2
+Jun 20 02:06:25 localhost sshd-session[2733]: Accepted password for abhishek from ::1 port 48998 ssh2
+Jun 20 02:06:54 localhost sudo[2772]: abhishek : TTY=pts/1 ; PWD=/home/abhishek ; USER=root ; COMMAND=/bin/tail -f /var/log/secure
+Jun 20 02:06:54 localhost sudo[2772]: pam_unix(sudo:session): session opened for user root(uid=0) by abhishek(uid=1000)
 """
 import re
 from datetime import datetime
 from collections import defaultdict
 
 events = []
+incidents = []
 
 def extract_data(log_line):
     event = {
@@ -30,8 +31,8 @@ def extract_data(log_line):
 
     if "Failed password" in log_line:
         ip_match = re.search(r"from (\S+) port",log_line)
-        username_match = re.search(r"for (\w+) from",log_line)
-        service_match = re.search(r"localhost (\w+)\[\d+\]",log_line) 
+        username_match = re.search(r"for (?:invalid user )?(\S+) from",log_line)
+        service_match = re.search(r"([\w-]+)\[\d+\]",log_line) 
         
         event["Event_type"] = "Authentication Failure"
         event["IP"] = ip_match.group(1) if ip_match else None
@@ -41,8 +42,8 @@ def extract_data(log_line):
     
     elif "Accepted password" in log_line:
         ip_match = re.search(r"from (\S+) port",log_line)
-        username_match = re.search(r"for (\w+) from",log_line)
-        service_match = re.search(r"localhost (\w+)\[\d+\]",log_line)
+        username_match = re.search(r"for (.*?) from",log_line)
+        service_match = re.search(r"([\w-]+)\[\d+\]",log_line)
         
         event["Event_type"] = "Authentication Success"
         event["IP"] = ip_match.group(1) if ip_match else None
@@ -71,20 +72,60 @@ def extract_data(log_line):
 
     return event
 
+def create_incident(incident_type,severity,username,ip,time_stamp,command,description):
+    incident = {
+        "Incident_type" : incident_type,
+        "Severity" : severity,
+        "Username" : username,
+        "IP" : ip,
+        "Time_stamp" : time_stamp,
+        "Command" : command,
+        "Description" : description
+    }
+    incidents.append(incident)
 
-with open("/home/abhishek/Documents/test_file.txt") as log:
-    for log_line in log:
-        event = extract_data(log_line)
+def detect_after_hour_login(events):
+    for event in events:
+        ts = event["Time_stamp"]
+        if ts and (ts.hour >= 22 or ts.hour < 5):
+            if event["Event_type"] == "Authentication Success":
+                create_incident("Suspicious Login",60,event["Username"],event["IP"],event["Time_stamp"],event["Command"],"Suspicious After Hour Login")
 
-        if event:
-            events.append(event)
+            elif event["Event_type"] == "Authentication Failure":
+                create_incident("Suspicious Login Attempt",50,event["Username"],event["IP"],event["Time_stamp"],event["Command"],"Suspicious Failed After Hour Login")
+
+#brute force condition --> 10 or more than attempts under 2 minutes from the same ip
+def detect_brute_force(events):
+    failed_by_ip = defaultdict(list)
+    for event in events:
+        if event["Event_type"] == "Authentication Failure":
+            ip = event["IP"]
+            failed_by_ip[ip].append(event)
+
+            if len(failed_by_ip[ip]) >= 10:
+                first_ts = failed_by_ip[ip][0]["Time_stamp"]
+                last_ts = failed_by_ip[ip][-1]["Time_stamp"]
+                difference = last_ts - first_ts
+
+                if difference.total_seconds() < 120:
+                    create_incident("Brute Force Attempt",80,failed_by_ip[ip][0]["Username"],failed_by_ip[ip][0]["IP"],first_ts,failed_by_ip[ip][0]["Command"],"Possible brute force attempt, many login attempts under 2 minutes")
+
+                failed_by_ip[ip]= []
+
+    
+  
+   
+
+                
+
+           
+
+    
+
+    
 
 
-print(events)
 
 
-
-
-
-
+        
 
