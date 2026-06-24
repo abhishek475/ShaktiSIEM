@@ -10,6 +10,7 @@ from datetime import datetime
 from collections import defaultdict
 import db
 
+
 #scan log file
 def scan_logs(filepath):
     try:
@@ -97,11 +98,10 @@ def extract_data(log_line):
 
     return event
 
-#create incident and append to incidents[] 
-def create_incident(incident_type,severity,username,ip,time_stamp,command,description,source):
+#create incident and save to db
+def create_incident(source, incident_type, severity, description, time_stamp, username, ip, command, artifact, event_action):
+    db.save_incident(source, incident_type, severity, description, time_stamp, username, ip, command, artifact, event_action)
 
-    db.save_incident(incident_type,severity,username,ip,time_stamp,command,description,source)
-    
 
 #detection parameters:
 #detects login in between 10 pm and 5am
@@ -110,10 +110,10 @@ def detect_after_hour_login(events):
         ts = event["Time_stamp"]
         if ts and (ts.hour >= 22 or ts.hour < 5):
             if event["Event_type"] == "Authentication Success":
-                create_incident("Suspicious Login",60,event["Username"],event["IP"],event["Time_stamp"],event["Command"],"Suspicious After Hour Login","auth_log")
+                create_incident("auth_log", "Suspicious Login", 60, "Suspicious After Hour Login", event["Time_stamp"], event["Username"], event["IP"], event["Command"], None, None)
 
             elif event["Event_type"] == "Authentication Failure":
-                create_incident("Suspicious Login Attempt",50,event["Username"],event["IP"],event["Time_stamp"],event["Command"],"Suspicious Failed After Hour Login","auth_log")
+                create_incident("auth_log", "Suspicious Login Attempt", 50, "Suspicious Failed After Hour Login", event["Time_stamp"], event["Username"], event["IP"], event["Command"], None, None)
 
 #brute force condition --> 10 or more than attempts under 2 minutes from the same ip
 def detect_brute_force(events):
@@ -129,9 +129,9 @@ def detect_brute_force(events):
                 difference = last_ts - first_ts
 
                 if difference.total_seconds() < 120:
-                    create_incident("Brute Force Attempt",80,failed_by_ip[ip][0]["Username"],failed_by_ip[ip][0]["IP"],first_ts,failed_by_ip[ip][0]["Command"],"Possible brute force attempt, many login attempts under 2 minutes","auth_log")
+                    create_incident("auth_log", "Brute Force Attempt", 80, "Possible brute force attempt, many login attempts under 2 minutes", first_ts, failed_by_ip[ip][0]["Username"], failed_by_ip[ip][0]["IP"], failed_by_ip[ip][0]["Command"], None, None)
 
-                failed_by_ip[ip]= []
+                failed_by_ip[ip] = []
 
 #sensitive commands are flagged
 def detect_sensitive_commands(events):
@@ -169,13 +169,14 @@ def detect_sensitive_commands(events):
 }
     for event in events:
         if event["Event_type"] == "Sudo Command":
-            for cmd,(label,score) in sensitive_commands.items():
+            for cmd, (label, score) in sensitive_commands.items():
                 command = event["Command"]
                 if cmd and cmd in command:
-                    create_incident(label,score,event["Username"],event["IP"],event["Time_stamp"],event["Command"],f'Sensitive command detected:{event["Command"]}',"auth_log")
-                  
+                    create_incident("auth_log", label, score, f'Sensitive command detected:{event["Command"]}', event["Time_stamp"], event["Username"], event["IP"], event["Command"], None, None)
+
+
 def main():
-    events = scan_logs("\var\log\secure")
+    events = scan_logs("/var/log/secure")
 
     if not events:
         print("No new events found")
@@ -188,13 +189,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-    
-    
-    
-   

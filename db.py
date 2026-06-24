@@ -57,16 +57,16 @@ def save_scanner_state(filepath,new_position):
         print(f"Database connection error: {e}")
 
 #save incidents to db
-def save_incident(incident_type,severity,username,ip,time_stamp,command,description,source):
+def save_incident(source,incident_type,severity,description,time_stamp,username,ip,command,artifact,event_action):
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
                     INSERT INTO incidents
-                    (incident_type,severity,username,ip,time_stamp,command,description,source)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-                    """,(incident_type,severity,username,ip,time_stamp,command,description,source)
+                    (source,incident_type,severity,description,username,ip,command,timestamp,artifact,event_action)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                    """,(source,incident_type,severity,description,username,ip,command,time_stamp,artifact,event_action)
                     )
         conn.commit()
         cursor.close()
