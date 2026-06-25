@@ -100,8 +100,10 @@ def extract_data(log_line):
 
 #create incident and save to db
 def create_incident(source, incident_type, severity, description, time_stamp, username, ip, command, artifact, event_action):
-    db.save_incident(source, incident_type, severity, description, time_stamp, username, ip, command, artifact, event_action)
-
+    if ping_db():
+        db.save_incident(source, incident_type, severity, description, time_stamp, username, ip, command, artifact, event_action)
+    else:
+        print("Database Offline")
 
 #detection parameters:
 #detects login in between 10 pm and 5am

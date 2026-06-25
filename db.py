@@ -17,6 +17,17 @@ DB_CONFIG = {
 def get_connection():
     return psycopg2.connect(**DB_CONFIG)
 
+def ping_db():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.close()
+        conn.close()
+        return True
+    except Exception:
+        return False
+
 def get_scanner_state(filepath):
     try:
         conn = get_connection()

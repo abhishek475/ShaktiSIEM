@@ -1,6 +1,7 @@
 from inotify_simple import INotify,flags
 import os
-from db import save_incident
+from datetime import datetime
+from db import save_incident,db_ping
 
 #flags
 file_flags = (
@@ -46,25 +47,64 @@ inotify = INotify()
 create_watch_map(file_watch_list,inotify,file_flags,watch_map)
 create_watch_map(dir_watch_list,inotify,dir_flags,watch_map)
 
-
+local_buffer = []
 while True:
     events = inotify.read()
     for event in events:
         wd = event.wd
+        if wd == -1:
+            print("inotify queue overflow,some events maybe missed")
+            continue
+        time_stamp = datetime.now()
         (path,description,severity) = watch_map[wd]
         event_action =  ", ".join(f.name for f in flags.from_mask(event.mask))
         artifact = os.path.join(path,event.name) if event.name else path
-        save_incident("inotify",
+        
+        if db_ping():
+            if local_buffer:
+                for buffer in local_buffer:
+                    save_incident(
+                        buffer["source"],
+                        buffer["incident_type"],
+                        buffer["severity"],
+                        buffer["description"],
+                        buffer["username"],
+                        buffer["ip"],
+                        buffer["command"],
+                        buffer["time_stamp"],
+                        buffer["artifact"],
+                        buffer["event_action"]
+                    )
+                local_buffer = []
+
+            save_incident(
+                    "inotify",
                     description,
                     severity,
                     f"{description} on {artifact}",
                     None,
                     None,
                     None,
-                    None,
+                    time_stamp,
                     artifact,
                     event_action
                     )
+        else:
+            local_buffer.append({
+                "source" : "inotify",
+                "incident_type" : description,
+                "severity" : severity,
+                "description" : f"{description} on {artifact}",
+                "username" : None,
+                "ip" : None,
+                "command" : None,
+                "time_stamp" : time_stamp,
+                "artifact" : artifact,
+                "event_action" : event_action
+            })
+
+            
+
 
 
 
