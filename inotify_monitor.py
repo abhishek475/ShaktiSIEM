@@ -90,18 +90,21 @@ while True:
                     event_action
                     )
         else:
-            local_buffer.append({
-                "source" : "inotify",
-                "incident_type" : description,
-                "severity" : severity,
-                "description" : f"{description} on {artifact}",
-                "username" : None,
-                "ip" : None,
-                "command" : None,
-                "time_stamp" : time_stamp,
-                "artifact" : artifact,
-                "event_action" : event_action
-            })
+            if len(local_buffer) > 10:
+                print("Local buffer full,incident dropped")
+            else:
+                local_buffer.append({
+                    "source" : "inotify",
+                    "incident_type" : description,
+                    "severity" : severity,
+                    "description" : f"{description} on {artifact}",
+                    "username" : None,
+                    "ip" : None,
+                    "command" : None,
+                    "time_stamp" : time_stamp,
+                    "artifact" : artifact,
+                    "event_action" : event_action
+            }   )
 
             
 
