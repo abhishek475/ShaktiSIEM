@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Users — ShaktiSIEM{% endblock %}
+{% block page_eyebrow %}<span class="page-eyebrow">Admin only</span>{% endblock %}
+{% block page_title %}Users{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Created</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td class="cell-pad cell-primary">{{ u.username }}</td>
+          <td class="cell-pad">
+            <form method="POST" action="{{ url_for('change_user_role', user_id=u.id) }}" style="display:inline;">
+              <select class="input-field" name="role" style="width:auto; padding:4px 8px; font-size:12px;" onchange="this.form.submit()">
+                <option value="analyst" {{ 'selected' if u.role == 'analyst' }}>Analyst</option>
+                <option value="manager" {{ 'selected' if u.role == 'manager' }}>Manager</option>
+                <option value="auditor" {{ 'selected' if u.role == 'auditor' }}>Auditor</option>
+                <option value="admin" {{ 'selected' if u.role == 'admin' }}>Admin</option>
+              </select>
+            </form>
+          </td>
+          <td class="cell-pad mono cell-muted">{{ u.created_at }}</td>
+          <td class="cell-pad" style="text-align:right;">
+            <form method="POST" action="{{ url_for('remove_user', user_id=u.id) }}" onsubmit="return confirm('Delete {{ u.username }}? This cannot be undone.');" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4"><div class="empty-state"><div class="empty-title">No users</div></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

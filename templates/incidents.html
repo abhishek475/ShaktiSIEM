@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Incidents — ShaktiSIEM{% endblock %}
+{% block page_eyebrow %}<span class="page-eyebrow">{{ incidents|length }} shown</span>{% endblock %}
+{% block page_title %}Incidents{% endblock %}
+
+{% block content %}
+
+<div class="toolbar">
+  <div class="chip-row">
+    <a href="{{ url_for('incidents') }}" class="filter-chip {{ 'active' if not request.args.get('severity') }}">All</a>
+    <a href="{{ url_for('incidents', severity='critical') }}" class="filter-chip {{ 'active' if request.args.get('severity') == 'critical' }}">Critical</a>
+    <a href="{{ url_for('incidents', severity='high') }}" class="filter-chip {{ 'active' if request.args.get('severity') == 'high' }}">High</a>
+    <a href="{{ url_for('incidents', severity='medium') }}" class="filter-chip {{ 'active' if request.args.get('severity') == 'medium' }}">Medium</a>
+    <a href="{{ url_for('incidents', severity='low') }}" class="filter-chip {{ 'active' if request.args.get('severity') == 'low' }}">Low</a>
+  </div>
+  <div class="spacer"></div>
+  <select class="input-field" style="width:auto;" onchange="if(this.value)window.location.href=this.value">
+    <option value="{{ url_for('incidents') }}" {{ 'selected' if not request.args.get('status') }}>All statuses</option>
+    <option value="{{ url_for('incidents', status='open') }}" {{ 'selected' if request.args.get('status') == 'open' }}>Open</option>
+    <option value="{{ url_for('incidents', status='investigating') }}" {{ 'selected' if request.args.get('status') == 'investigating' }}>Investigating</option>
+    <option value="{{ url_for('incidents', status='closed') }}" {{ 'selected' if request.args.get('status') == 'closed' }}>Closed</option>
+  </select>
+  <select class="input-field" style="width:auto;" onchange="if(this.value)window.location.href=this.value">
+    <option value="{{ url_for('incidents') }}" {{ 'selected' if not request.args.get('source') }}>All sources</option>
+    <option value="{{ url_for('incidents', source='auth_log') }}" {{ 'selected' if request.args.get('source') == 'auth_log' }}>auth_log</option>
+    <option value="{{ url_for('incidents', source='inotify') }}" {{ 'selected' if request.args.get('source') == 'inotify' }}>inotify</option>
+  </select>
+</div>
+
+<div class="panel">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>ID</th>
+          <th>Type</th>
+          <th>Source</th>
+          <th>Artifact / Actor</th>
+          <th>IP</th>
+          <th>Status</th>
+          <th>Detected</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inc in incidents %}
+        <tr class="is-clickable" onclick="window.location.href='{{ url_for('incident_detail', incident_id=inc.id) }}'">
+          <td class="cell-rail">
+            <div class="sev-rail" style="background:
+              {%- if inc.severity >= 70 %} var(--sev-critical)
+              {%- elif inc.severity >= 50 %} var(--sev-high)
+              {%- elif inc.severity >= 30 %} var(--sev-medium)
+              {%- else %} var(--sev-low){% endif %}"></div>
+          </td>
+          <td class="cell-pad mono cell-muted">#{{ inc.id }}</td>
+          <td class="cell-pad cell-primary">{{ inc.incident_type }}</td>
+          <td class="cell-pad mono">{{ inc.source }}</td>
+          <td class="cell-pad mono">{{ inc.username or inc.artifact or '—' }}</td>
+          <td class="cell-pad mono cell-muted">{{ inc.ip or '—' }}</td>
+          <td class="cell-pad">
+            {% if inc.status == 'open' %}<span class="badge badge-critical">Open</span>
+            {% elif inc.status == 'investigating' %}<span class="badge badge-info">Investigating</span>
+            {% else %}<span class="badge badge-neutral">Closed</span>{% endif %}
+          </td>
+          <td class="cell-pad mono cell-muted">{{ inc.created_at }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8"><div class="empty-state"><div class="empty-title">No incidents match these filters</div><div class="empty-sub">Try clearing a filter above.</div></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

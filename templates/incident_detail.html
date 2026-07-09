@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Incident #{{ incident.id }} — ShaktiSIEM{% endblock %}
+{% block page_eyebrow %}<span class="page-eyebrow">Incident #{{ incident.id }}</span>{% endblock %}
+{% block page_title %}{{ incident.incident_type }}{% endblock %}
+{% block topbar_extra %}
+  <a href="{{ url_for('incidents') }}" class="btn btn-sm">&larr; Back</a>
+{% endblock %}
+
+{% block content %}
+
+<div class="grid-2">
+  <div>
+    <div class="panel section-gap">
+      <div class="panel-header">
+        <span class="panel-title">Detection Details</span>
+        <span class="badge
+          {%- if incident.severity >= 70 %} badge-critical
+          {%- elif incident.severity >= 50 %} badge-high
+          {%- elif incident.severity >= 30 %} badge-medium
+          {%- else %} badge-low{% endif %}">Severity {{ incident.severity }}</span>
+      </div>
+      <div class="panel-body">
+        <div class="kv-list">
+          <div class="kv-row"><span class="kv-key">Source</span><span class="kv-val">{{ incident.source }}</span></div>
+          {% if incident.source == 'inotify' %}
+          <div class="kv-row"><span class="kv-key">Artifact</span><span class="kv-val">{{ incident.artifact or '—' }}</span></div>
+          <div class="kv-row"><span class="kv-key">Event action</span><span class="kv-val">{{ incident.event_action or '—' }}</span></div>
+          {% else %}
+          <div class="kv-row"><span class="kv-key">Username</span><span class="kv-val">{{ incident.username or '—' }}</span></div>
+          <div class="kv-row"><span class="kv-key">IP address</span><span class="kv-val">{{ incident.ip or '—' }}</span></div>
+          <div class="kv-row"><span class="kv-key">Command</span><span class="kv-val">{{ incident.command or '—' }}</span></div>
+          {% endif %}
+          <div class="kv-row"><span class="kv-key">Status</span><span class="kv-val">{{ incident.status }}</span></div>
+          <div class="kv-row"><span class="kv-key">Detected</span><span class="kv-val">{{ incident.created_at }}</span></div>
+          {% if incident.event_time %}<div class="kv-row"><span class="kv-key">Event time</span><span class="kv-val">{{ incident.event_time }}</span></div>{% endif %}
+        </div>
+        {% if incident.description %}
+        <p style="margin-top:16px; color:var(--text-secondary); font-size:13.5px; line-height:1.6;">{{ incident.description }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Notes</span></div>
+      <div class="panel-body">
+        {% for note in notes %}
+        <div class="note-item">
+          <div class="note-meta">
+            <span class="note-author">{{ note.added_by }}</span>
+            <span class="note-time">{{ note.added_at }}</span>
+          </div>
+          <div class="note-body">{{ note.content }}</div>
+        </div>
+        {% else %}
+        <p style="color:var(--text-muted); font-size:13px;">No notes yet.</p>
+        {% endfor %}
+
+        {% if current_user_role in ['analyst', 'manager', 'admin'] %}
+        <form method="POST" action="{{ url_for('incident_detail', incident_id=incident.id) }}" style="margin-top:14px;">
+          <div class="input-group" style="margin-bottom:10px;">
+            <textarea class="input-field" name="content" rows="3" placeholder="Add a note…" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">Add note</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div>
+    {% if current_user_role in ['analyst', 'manager', 'admin'] %}
+    <div class="panel section-gap">
+      <div class="panel-header"><span class="panel-title">Status</span></div>
+      <div class="panel-body">
+        <form method="POST" action="{{ url_for('change_status', incident_id=incident.id) }}">
+          <div class="input-group">
+            <label class="input-label" for="status">Current status</label>
+            <select class="input-field" id="status" name="status">
+              <option value="open" {{ 'selected' if incident.status == 'open' }}>Open</option>
+              <option value="investigating" {{ 'selected' if incident.status == 'investigating' }}>Investigating</option>
+              <option value="closed" {{ 'selected' if incident.status == 'closed' }}>Closed</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-block">Update status</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if current_user_role in ['manager', 'admin'] %}
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Assignment</span></div>
+      <div class="panel-body">
+        <form method="POST" action="{{ url_for('assign', incident_id=incident.id) }}">
+          <div class="input-group">
+            <label class="input-label" for="assigned_to">Assign to (user id)</label>
+            <input class="input-field mono" type="number" id="assigned_to" name="assigned_to"
+                   value="{{ incident.assigned_to or '' }}" placeholder="e.g. 3">
+          </div>
+          <button type="submit" class="btn btn-block">Assign</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

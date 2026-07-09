@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ShaktiSIEM{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- ===================== SIDEBAR ===================== -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div class="brand-text">
+          <div class="brand-title">ShaktiSIEM</div>
+          <div class="brand-sub">Threat Console</div>
+        </div>
+      </div>
+
+      <nav class="nav-group">
+        <div class="nav-label">Monitor</div>
+        <a href="{{ url_for('dashboard') }}" class="nav-link {{ 'active' if active_page == 'dashboard' }}">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          Dashboard
+        </a>
+        <a href="{{ url_for('incidents') }}" class="nav-link {{ 'active' if active_page == 'incidents' }}">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L14.7 3.86a2 2 0 0 0-3.4 0Z"/></svg>
+          Incidents
+        </a>
+      </nav>
+
+      {% if current_user_role in ['manager', 'admin', 'auditor'] %}
+      <div class="nav-group">
+        <div class="nav-label">Oversight</div>
+        {% if current_user_role in ['manager', 'admin'] %}
+        <a href="{{ url_for('sessions') }}" class="nav-link {{ 'active' if active_page == 'sessions' }}">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M5 21v-1a7 7 0 0 1 14 0v1"/></svg>
+          Active Sessions
+        </a>
+        {% endif %}
+        {% if current_user_role in ['admin', 'auditor'] %}
+        <a href="{{ url_for('audit') }}" class="nav-link {{ 'active' if active_page == 'audit' }}">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 12h6M9 16h6M9 8h6"/><rect x="4" y="3" width="16" height="18" rx="2"/></svg>
+          Audit Log
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if current_user_role == 'admin' %}
+      <div class="nav-group">
+        <div class="nav-label">Administration</div>
+        <a href="{{ url_for('users') }}" class="nav-link {{ 'active' if active_page == 'users' }}">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="7" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16.5 4.5c1.5 0 3 1.2 3 3.2s-1.5 3.2-3 3.2"/><path d="M16 14a6 6 0 0 1 5.5 6"/></svg>
+          Users
+        </a>
+      </div>
+      {% endif %}
+
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="user-avatar">{{ (current_user_name or "?")[:1]|upper }}</div>
+          <div class="user-meta">
+            <div class="user-name">{{ current_user_name or "Unknown" }}</div>
+            <div class="user-role">{{ current_user_role or "—" }}</div>
+          </div>
+        </div>
+        <form method="POST" action="{{ url_for('logout') }}" style="margin-top:6px;">
+          <button type="submit" class="logout-link" style="width:100%;text-align:left;background:none;border:none;">Sign out</button>
+        </form>
+      </div>
+    </aside>
+
+    <!-- ===================== MAIN ===================== -->
+    <div class="main-col">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          </button>
+          {% block page_eyebrow %}{% endblock %}
+          <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+        </div>
+        <div class="topbar-right">
+          {% block topbar_extra %}{% endblock %}
+          <div class="live-pulse"><span class="live-dot"></span> Live</div>
+        </div>
+      </header>
+
+      <main class="content">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+          <div class="flash-list">
+            {% for message in messages %}
+              <div class="flash flash-error">{{ message }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var t = document.getElementById('menuToggle');
+      var s = document.getElementById('sidebar');
+      if (t && s) t.addEventListener('click', function () { s.classList.toggle('is-open'); });
+    });
+  </script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

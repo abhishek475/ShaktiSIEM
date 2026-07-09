@@ -10,7 +10,6 @@ from datetime import datetime
 from collections import defaultdict
 import db
 
-
 #scan log file
 def scan_logs(filepath):
     try:
@@ -100,10 +99,10 @@ def extract_data(log_line):
 
 #create incident and save to db
 def create_incident(source, incident_type, severity, description, time_stamp, username, ip, command, artifact, event_action):
-    if ping_db():
+    try:
         db.save_incident(source, incident_type, severity, description, time_stamp, username, ip, command, artifact, event_action)
-    else:
-        print("Database Offline")
+    except Exception as e:
+        print(f"Database unreachable: {e}")
 
 #detection parameters:
 #detects login in between 10 pm and 5am
@@ -188,6 +187,7 @@ def main():
     detect_sensitive_commands(events)
 
     print(f"Processed {len(events)} events")
+
 
 if __name__ == "__main__":
     main()

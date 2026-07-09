@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Audit Log — ShaktiSIEM{% endblock %}
+{% block page_eyebrow %}<span class="page-eyebrow">audit_log</span>{% endblock %}
+{% block page_title %}Audit Log{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <span class="panel-title">Action history</span>
+    <span class="badge badge-neutral">{{ entries|length }} entries</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>User</th>
+          <th>Action</th>
+          <th>Target</th>
+          <th>Record</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td class="cell-pad mono cell-muted">{{ e.created_at }}</td>
+          <td class="cell-pad cell-primary">{{ e.username or 'deleted user' }}</td>
+          <td class="cell-pad"><span class="badge badge-info">{{ e.action }}</span></td>
+          <td class="cell-pad mono">{{ e.target_table or '—' }}</td>
+          <td class="cell-pad mono cell-muted">{{ '#' ~ e.target_id if e.target_id else '—' }}</td>
+          <td class="cell-pad mono cell-muted">{{ e.details or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6"><div class="empty-state"><div class="empty-title">No audit entries yet</div><div class="empty-sub">Actions will appear here as users work.</div></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — ShaktiSIEM{% endblock %}
+{% block page_eyebrow %}<span class="page-eyebrow">Overview</span>{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="stat-strip">
+  <div class="stat-cell sc-critical">
+    <div class="stat-num">{{ counts.critical if counts else 0 }}</div>
+    <div class="stat-label">Critical</div>
+  </div>
+  <div class="stat-cell sc-high">
+    <div class="stat-num">{{ counts.high if counts else 0 }}</div>
+    <div class="stat-label">High</div>
+  </div>
+  <div class="stat-cell sc-medium">
+    <div class="stat-num">{{ counts.medium if counts else 0 }}</div>
+    <div class="stat-label">Medium</div>
+  </div>
+  <div class="stat-cell sc-low">
+    <div class="stat-num">{{ counts.low if counts else 0 }}</div>
+    <div class="stat-label">Low</div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="panel section-gap">
+    <div class="panel-header">
+      <span class="panel-title">Recent Incidents</span>
+      <a href="{{ url_for('incidents') }}" class="btn btn-sm">View all</a>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Type</th>
+            <th>Source</th>
+            <th>Artifact / Actor</th>
+            <th>Status</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inc in recent %}
+          <tr class="is-clickable" onclick="window.location.href='{{ url_for('incident_detail', incident_id=inc.id) }}'">
+            <td class="cell-rail">
+              <div class="sev-rail" style="background:
+                {%- if inc.status == 'closed' %} var(--sev-low)
+                {%- elif inc.status == 'investigating' %} var(--info)
+                {%- else %} var(--sev-critical){% endif %}"></div>
+            </td>
+            <td class="cell-pad cell-primary">{{ inc.incident_type }}</td>
+            <td class="cell-pad mono">{{ inc.source }}</td>
+            <td class="cell-pad mono">{{ inc.artifact_actor or '—' }}</td>
+            <td class="cell-pad">
+              {% if inc.status == 'open' %}<span class="badge badge-critical">Open</span>
+              {% elif inc.status == 'investigating' %}<span class="badge badge-info">Investigating</span>
+              {% else %}<span class="badge badge-neutral">Closed</span>{% endif %}
+            </td>
+            <td class="cell-pad mono cell-muted">{{ inc.created_at }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6"><div class="empty-state"><div class="empty-title">No incidents yet</div><div class="empty-sub">Detection engines will populate this as events arrive.</div></div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div>
+    {% if current_user_role in ['manager', 'admin'] %}
+    <div class="panel section-gap">
+      <div class="panel-header">
+        <span class="panel-title">Active Sessions</span>
+        <a href="{{ url_for('sessions') }}" class="btn btn-sm">Manage</a>
+      </div>
+      <div class="panel-body">
+        <div class="kv-list">
+          <div class="kv-row"><span class="kv-key">Logged in now</span><span class="kv-val">{{ logins.active_logins if logins else 0 }}</span></div>
+          <div class="kv-row"><span class="kv-key">Analysts on shift</span><span class="kv-val">{{ logins.analyst_on_shift if logins else 0 }}</span></div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Detection Sources</span></div>
+      <div class="panel-body">
+        <div class="kv-list">
+          <div class="kv-row"><span class="kv-key">auth_log scanner</span><span class="kv-val" style="color:var(--sev-low)">● online</span></div>
+          <div class="kv-row"><span class="kv-key">inotify watcher</span><span class="kv-val" style="color:var(--sev-low)">● online</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

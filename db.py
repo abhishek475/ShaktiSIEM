@@ -2,6 +2,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 from dotenv import load_dotenv
+import auth
 
 load_dotenv("password.env")
 
@@ -75,7 +76,7 @@ def save_incident(source,incident_type,severity,description,time_stamp,username,
 
         cursor.execute("""
                     INSERT INTO incidents
-                    (source,incident_type,severity,description,username,ip,command,timestamp,artifact,event_action)
+                    (source,incident_type,severity,description,username,ip,command,event_time,artifact,event_action)
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                     """,(source,incident_type,severity,description,username,ip,command,time_stamp,artifact,event_action)
                     )
@@ -86,27 +87,402 @@ def save_incident(source,incident_type,severity,description,time_stamp,username,
     except Exception as e:
         print(f"Error saving incident: {e}")
 
-#fetch all incidents
-def fetch_all_incidents():
+def fetch_user(user):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(cursor_factory = RealDictCursor)
+
+        cursor.execute(""" 
+                    SELECT * FROM users
+                    WHERE username = %s
+                    """,(user,))
+        
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        return row
+    
+    except Exception as e:
+        print(f"Error retrieving user_details : {e}")
+        return None
+    
+def save_login_session(user_id,ip):
+    try:   
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+                        INSERT INTO active_sessions
+                    (user_id,ip_address)
+                    VALUES(%s,%s) RETURNING id""",(user_id,ip)
+                    )
+        
+        id_session = cursor.fetchone()[0]
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        return id_session
+    except Exception as e:
+        print(f"Error saving login session: {e}")
+        return None
+
+def logout_session(id_session):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+                        UPDATE active_sessions
+                        SET is_active = FALSE,logout_at = now()
+                        WHERE id = %s
+                        """,(id_session,)
+                    )
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error changing logout status: {e}")
+
+
+def fetch_user_by_id(user_id):
     try:
         conn = get_connection()
         cursor = conn.cursor(cursor_factory = RealDictCursor)
 
         cursor.execute("""
-                    SELECT * FROM incidents 
-                    ORDER BY created_at DESC
+                        SELECT * FROM users
+                        WHERE id = %s
+                    """,(user_id,)
+                    )
+        user_details = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        return user_details
+    except Exception as e:
+        print(f"Error in fetching user details: {e}")
+        return {}
+
+def severity_count():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(cursor_factory = RealDictCursor)
+
+        cursor.execute("""
+                    SELECT
+                    COUNT(*) FILTER (WHERE severity >= 70) AS critical,
+                    COUNT(*) FILTER (WHERE severity >= 50 AND severity < 70) AS high,
+                    COUNT(*) FILTER (WHERE severity >= 30 AND severity < 50) AS medium,
+                    COUNT(*) FILTER (WHERE severity < 30) AS low
+                    FROM incidents
                     """)
+        counts = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return counts
+    
+    except Exception as e:
+        print(f"Error fetching severity count: {e}")
+        return{"critical":0,"high":0,"medium":0,"low":0}
+    
+def get_recent_incidents(limit=5):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(cursor_factory = RealDictCursor)
+
+        cursor.execute("""
+                    SELECT 
+                       id,
+                       incident_type,
+                       source,
+                       COALESCE(username,artifact) AS artifact_actor,
+                       ip,
+                       status,
+                       created_at
+                    FROM incidents
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                    """,(limit,))
         incidents = cursor.fetchall()
         cursor.close()
         conn.close()
         return incidents
+    except Exception as e:
+        print(f"Error fetching recent incidents: {e}")
+        return []
+    
+def dashboard_logins():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(cursor_factory = RealDictCursor)
 
+        cursor.execute("""
+                       SELECT
+                        COUNT(*) AS active_logins,
+                        COUNT(*) FILTER (WHERE u.role = 'analyst') AS analyst_on_shift
+                        FROM active_sessions s
+                        JOIN users u ON u.id = s.user_id
+                        WHERE s.is_active = TRUE
+                    """)
+        active_user_count = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return active_user_count
+    
+    except Exception as e:
+        print(f"Error fetching active user data: {e}")
+        return {"active_logins":0,"analyst_on_shift":0}
+
+def fetch_incidents(status = None,source = None,severity = None):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(cursor_factory = RealDictCursor)
+
+        query = "SELECT * FROM incidents WHERE TRUE"
+        params = []
+        if status:
+            query += " AND status = %s"
+            params.append(status)
+        if source:
+            query += " AND source = %s"
+            params.append(source)
+        if severity:
+            if severity == "critical":
+                query += " AND severity >= 70"
+            elif severity == "high":
+                query += " AND severity >= 50 AND severity < 70"
+            elif severity == "medium":
+                query += " AND severity >= 30 AND severity < 50"
+            elif severity == "low":
+                query += " AND severity < 30"
+            
+        query += " ORDER BY created_at DESC"
+
+        cursor.execute(query, params)
+        incidents = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return incidents
     except Exception as e:
         print(f"Error fetching incidents: {e}")
         return []
+    
+def fetch_incident_by_id(incident_id):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(cursor_factory = RealDictCursor)
 
+        cursor.execute("""
+                        SELECT * FROM incidents
+                        WHERE id = %s
+                    """,(incident_id,)
+                    )
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return row
+    except Exception as e:
+        print(f"Error fetching incidents by id: {e}")
+        return {}
 
+def fetch_notes_by_id(incident_id):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(cursor_factory = RealDictCursor)
 
+        cursor.execute("""
+                        SELECT n.id, n.content, n.added_at, u.username AS added_by
+                        FROM notes n
+                        JOIN users u ON u.id = n.added_by
+                        WHERE n.incident_id = %s
+                        ORDER BY n.added_at ASC
+                    """,(incident_id,))
+        notes = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return notes
+    except Exception as e:
+        print(f"Error fetching notes by id: {e}")
+        return []
+    
+def add_note(incident_id,added_by,content):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
+        cursor.execute("""
+                        INSERT INTO notes
+                       (incident_id,added_by,content)
+                       VALUES(%s,%s,%s)
+                    """,(incident_id,added_by,content)
+                    )
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error adding note: {e}")
 
+def update_status(incident_id,status):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
+        cursor.execute("""
+                        UPDATE incidents
+                        SET status = %s
+                        WHERE id = %s
+                    """,(status,incident_id)
+                    )
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error updating status: {e}")
+
+def assign_incident(incident_id,assigned_to):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+                        UPDATE incidents
+                        SET assigned_to = %s
+                        WHERE id = %s
+                    """,(assigned_to,incident_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error assigning incident: {e}")
+
+def fetch_all_users():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(cursor_factory = RealDictCursor)
+
+        cursor.execute("""
+                        SELECT id,username,role,created_at
+                        FROM users
+                    """)
+        
+        details = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return details
+    
+    except Exception as e:
+        print(f"Error fetching user: {e}")
+        return []
+    
+def delete_user(user_id):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+                        DELETE FROM users
+                        WHERE id = %s
+                    """,(user_id,)
+                    )
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error removing user: {e}")
+
+def change_role(role,user_id):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+                        UPDATE users
+                        SET role = %s
+                        WHERE id = %s
+                    """,(role,user_id)
+                    )
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    except Exception as e:
+        print(f"Error changing role: {e}")
+
+def fetch_active_sessions():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(cursor_factory = RealDictCursor)
+
+        cursor.execute("""
+                        SELECT u.username,u.role,s.ip_address,s.id,s.login_at
+                        FROM active_sessions s
+                        JOIN users u ON u.id = s.user_id
+                        WHERE s.is_active = TRUE
+                        ORDER BY s.login_at DESC
+                    """)
+        data = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return data
+    except Exception as e:
+        print(f"Error fetching active sessions: {e}")
+        return []
+    
+def is_session_active(session_id):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+                        SELECT is_active
+                        FROM active_sessions
+                        WHERE id = %s
+                    """,(session_id,)
+                    )
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        if row and row[0]:
+            return True
+        return False
+    except Exception as e:
+        print(f"Error checking active sessions: {e}")
+        return False
+
+def log_action(user_id,action,target_table,target_id,details):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+                        INSERT INTO audit_log
+                        (user_id,action,target_table,target_id,details)
+                        VALUES (%s,%s,%s,%s,%s)
+                    """,(user_id,action,target_table,target_id,details)
+                    )
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error logging action: {e}")
+
+def fetch_audit_log():
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(cursor_factory = RealDictCursor)
+
+        cursor.execute("""
+                        SELECT a.id, u.username, a.action, a.target_table, a.target_id, a.details, a.created_at
+                        FROM audit_log a
+                        LEFT JOIN users u ON u.id = a.user_id
+                        ORDER BY a.created_at DESC
+                    """)
+        entries = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return entries
+    except Exception as e:
+        print(f"Error fetching audit log: {e}")
+        return []

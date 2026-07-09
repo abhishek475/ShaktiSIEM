@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in — ShaktiSIEM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+</head>
+<body>
+  <div class="auth-page" style="display:grid; grid-template-columns:1fr 1fr; min-height:100vh;">
+
+    <div class="auth-side">
+      <div class="auth-grid-bg"></div>
+      <div class="auth-side-top">
+        <div class="brand-mark"></div>
+        <div class="brand-text">
+          <div class="brand-title">ShaktiSIEM</div>
+          <div class="brand-sub">Threat Console</div>
+        </div>
+      </div>
+      <div class="auth-side-feed">
+        <div class="feed-line"><span class="feed-sev" style="background:#3FB950"></span><span>02:06:25</span><span>Authentication Success · abhishek</span></div>
+        <div class="feed-line"><span class="feed-sev" style="background:#D4A72C"></span><span>02:05:56</span><span>Authentication Failure · invalid user</span></div>
+        <div class="feed-line"><span class="feed-sev" style="background:#F0883E"></span><span>02:06:54</span><span>Sudo Command · /bin/tail /var/log/secure</span></div>
+        <div class="feed-line"><span class="feed-sev" style="background:#58A6FF"></span><span>02:06:54</span><span>Root Session opened · uid=0</span></div>
+      </div>
+      <p class="auth-side-quote">
+        <span class="q-mark">// uptime matters less than what you noticed</span>
+        Every login, sudo command, and file touch on a watched path becomes
+        a row here. The console's only job is to make the few that matter
+        impossible to miss.
+      </p>
+    </div>
+
+    <div class="auth-form-col">
+      <div class="auth-form-card">
+        <div class="auth-mobile-brand">
+          <div class="brand-mark"></div>
+          <div class="brand-text">
+            <div class="brand-title">ShaktiSIEM</div>
+            <div class="brand-sub">Threat Console</div>
+          </div>
+        </div>
+
+        <div class="form-eyebrow">Restricted access</div>
+        <h1>Sign in</h1>
+        <p class="form-sub">Use your analyst credentials to open the console.</p>
+
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+          <div class="flash-list">
+            {% for message in messages %}
+              <div class="flash flash-error">{{ message }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+          <div class="input-group">
+            <label class="input-label" for="username">Username</label>
+            <input class="input-field mono" type="text" id="username" name="username" placeholder="e.g. abhishek" autocomplete="username" required autofocus>
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="password">Password</label>
+            <input class="input-field" type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+        </form>
+
+        <p class="auth-footnote">Lost access?<span class="sep">·</span>Ask your administrator to reset credentials</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Active Sessions — ShaktiSIEM{% endblock %}
+{% block page_eyebrow %}<span class="page-eyebrow">active_sessions</span>{% endblock %}
+{% block page_title %}Active Sessions{% endblock %}
+
+{% block content %}
+
+<div class="panel">
+  <div class="panel-header">
+    <span class="panel-title">Currently logged in</span>
+    <span class="badge badge-low">{{ sessions|length }} online</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Role</th>
+          <th>IP address</th>
+          <th>Login time</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sessions %}
+        <tr>
+          <td class="cell-pad cell-primary">{{ s.username }}</td>
+          <td class="cell-pad"><span class="badge badge-neutral">{{ s.role }}</span></td>
+          <td class="cell-pad mono">{{ s.ip_address or '—' }}</td>
+          <td class="cell-pad mono cell-muted">{{ s.login_at }}</td>
+          <td class="cell-pad" style="text-align:right;">
+            <form method="POST" action="{{ url_for('force_logout', session_id=s.id) }}" onsubmit="return confirm('Force logout {{ s.username }}?');" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-danger">Force logout</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5"><div class="empty-state"><div class="empty-title">No active sessions</div></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
