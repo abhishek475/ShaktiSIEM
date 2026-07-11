@@ -1,7 +1,7 @@
 from inotify_simple import INotify,flags
 import os
 from datetime import datetime
-from db import save_incident,db_ping
+from db import save_incident,ping_db
 
 #flags
 file_flags = (
@@ -41,75 +41,73 @@ dir_watch_list = [
     ("/root/.ssh",     "SSH Key Modification", 100),
     ("/tmp",           "Suspicious File Drop", 60),
     ]
-watch_map = {}
-inotify = INotify()
 
-create_watch_map(file_watch_list,inotify,file_flags,watch_map)
-create_watch_map(dir_watch_list,inotify,dir_flags,watch_map)
+def run_watcher():
+    watch_map = {}
+    inotify = INotify()
 
-local_buffer = []
-while True:
-    events = inotify.read()
-    for event in events:
-        wd = event.wd
-        if wd == -1:
-            print("inotify queue overflow,some events maybe missed")
-            continue
-        time_stamp = datetime.now()
-        (path,description,severity) = watch_map[wd]
-        event_action =  ", ".join(f.name for f in flags.from_mask(event.mask))
-        artifact = os.path.join(path,event.name) if event.name else path
-        
-        if db_ping():
-            if local_buffer:
-                for buffer in local_buffer:
-                    save_incident(
-                        buffer["source"],
-                        buffer["incident_type"],
-                        buffer["severity"],
-                        buffer["description"],
-                        buffer["username"],
-                        buffer["ip"],
-                        buffer["command"],
-                        buffer["time_stamp"],
-                        buffer["artifact"],
-                        buffer["event_action"]
-                    )
-                local_buffer = []
+    create_watch_map(file_watch_list,inotify,file_flags,watch_map)
+    create_watch_map(dir_watch_list,inotify,dir_flags,watch_map)
 
-            save_incident(
-                    "inotify",
-                    description,
-                    severity,
-                    f"{description} on {artifact}",
-                    None,
-                    None,
-                    None,
-                    time_stamp,
-                    artifact,
-                    event_action
-                    )
-        else:
-            if len(local_buffer) > 10:
-                print("Local buffer full,incident dropped")
-            else:
-                local_buffer.append({
-                    "source" : "inotify",
-                    "incident_type" : description,
-                    "severity" : severity,
-                    "description" : f"{description} on {artifact}",
-                    "username" : None,
-                    "ip" : None,
-                    "command" : None,
-                    "time_stamp" : time_stamp,
-                    "artifact" : artifact,
-                    "event_action" : event_action
-            }   )
-
+    local_buffer = []
+    while True:
+        events = inotify.read()
+        for event in events:
+            wd = event.wd
+            if wd == -1:
+                print("inotify queue overflow,some events maybe missed")
+                continue
+            time_stamp = datetime.now()
+            (path,description,severity) = watch_map[wd]
+            event_action =  ", ".join(f.name for f in flags.from_mask(event.mask))
+            artifact = os.path.join(path,event.name) if event.name else path
             
+            if ping_db():
+                if local_buffer:
+                    for buffer in local_buffer:
+                        save_incident(
+                            buffer["source"],
+                            buffer["incident_type"],
+                            buffer["severity"],
+                            buffer["description"],
+                            buffer["time_stamp"],
+                            buffer["username"],
+                            buffer["ip"],
+                            buffer["command"],
+                            buffer["artifact"],
+                            buffer["event_action"]
+                        )
+                    local_buffer = []
+
+                save_incident(
+                        "inotify",
+                        description,
+                        severity,
+                        f"{description} on {artifact}",
+                        time_stamp,
+                        None,
+                        None,
+                        None,
+                        artifact,
+                        event_action
+                        )
+            else:
+                if len(local_buffer) > 10:
+                    print("Local buffer full,incident dropped")
+                else:
+                    local_buffer.append({
+                        "source" : "inotify",
+                        "incident_type" : description,
+                        "severity" : severity,
+                        "description" : f"{description} on {artifact}",
+                        "username" : None,
+                        "ip" : None,
+                        "command" : None,
+                        "time_stamp" : time_stamp,
+                        "artifact" : artifact,
+                        "event_action" : event_action
+                }   )
 
 
-
-
-
-
+if __name__ == "__main__":
+    run_watcher()

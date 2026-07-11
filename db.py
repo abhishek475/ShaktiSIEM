@@ -2,7 +2,6 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 from dotenv import load_dotenv
-import auth
 
 load_dotenv("password.env")
 
@@ -88,13 +87,14 @@ def save_incident(source,incident_type,severity,description,time_stamp,username,
         print(f"Error saving incident: {e}")
 
 def fetch_user(user):
+    """Login lookup. Only returns ACTIVE (not deactivated) accounts."""
     try:
         conn = get_connection()
         cursor = conn.cursor(cursor_factory = RealDictCursor)
 
         cursor.execute(""" 
                     SELECT * FROM users
-                    WHERE username = %s
+                    WHERE username = %s AND is_active = TRUE
                     """,(user,))
         
         row = cursor.fetchone()
@@ -108,9 +108,22 @@ def fetch_user(user):
         return None
     
 def save_login_session(user_id,ip):
+    """
+    Creates a new session row. Before doing so, closes any other still-active
+    sessions this same user had (e.g. from closing the browser without
+    logging out), so the Sessions page never shows the same user 'online'
+    more than once.
+    """
     try:   
         conn = get_connection()
         cursor = conn.cursor()
+
+        # close any stale/duplicate sessions for this user first
+        cursor.execute("""
+                        UPDATE active_sessions
+                        SET is_active = FALSE, logout_at = now()
+                        WHERE user_id = %s AND is_active = TRUE
+                    """,(user_id,))
 
         cursor.execute("""
                         INSERT INTO active_sessions
@@ -200,7 +213,7 @@ def get_recent_incidents(limit=5):
                        COALESCE(username,artifact) AS artifact_actor,
                        ip,
                        status,
-                       created_at
+                       TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') AS created_at
                     FROM incidents
                     ORDER BY created_at DESC
                     LIMIT %s
@@ -240,7 +253,7 @@ def fetch_incidents(status = None,source = None,severity = None):
         conn = get_connection()
         cursor = conn.cursor(cursor_factory = RealDictCursor)
 
-        query = "SELECT * FROM incidents WHERE TRUE"
+        query = "SELECT *, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') AS created_at_display FROM incidents WHERE TRUE"
         params = []
         if status:
             query += " AND status = %s"
@@ -275,7 +288,10 @@ def fetch_incident_by_id(incident_id):
         cursor = conn.cursor(cursor_factory = RealDictCursor)
 
         cursor.execute("""
-                        SELECT * FROM incidents
+                        SELECT *,
+                               TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') AS created_at_display,
+                               TO_CHAR(event_time, 'YYYY-MM-DD HH24:MI') AS event_time_display
+                        FROM incidents
                         WHERE id = %s
                     """,(incident_id,)
                     )
@@ -293,7 +309,7 @@ def fetch_notes_by_id(incident_id):
         cursor = conn.cursor(cursor_factory = RealDictCursor)
 
         cursor.execute("""
-                        SELECT n.id, n.content, n.added_at, u.username AS added_by
+                        SELECT n.id, n.content, TO_CHAR(n.added_at, 'YYYY-MM-DD HH24:MI') AS added_at, u.username AS added_by
                         FROM notes n
                         JOIN users u ON u.id = n.added_by
                         WHERE n.incident_id = %s
@@ -358,13 +374,15 @@ def assign_incident(incident_id,assigned_to):
         print(f"Error assigning incident: {e}")
 
 def fetch_all_users():
+    """Includes is_active so the admin page can show/hide Deactivate vs Reactivate."""
     try:
         conn = get_connection()
         cursor = conn.cursor(cursor_factory = RealDictCursor)
 
         cursor.execute("""
-                        SELECT id,username,role,created_at
+                        SELECT id,username,role,is_active,TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') AS created_at
                         FROM users
+                        ORDER BY created_at DESC
                     """)
         
         details = cursor.fetchall()
@@ -377,12 +395,18 @@ def fetch_all_users():
         return []
     
 def delete_user(user_id):
+    """
+    SOFT delete: deactivates the account instead of removing the row.
+    Keeps notes/audit/session history intact and correctly attributed.
+    A deactivated user can no longer log in (see fetch_user).
+    """
     try:
         conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
-                        DELETE FROM users
+                        UPDATE users
+                        SET is_active = FALSE
                         WHERE id = %s
                     """,(user_id,)
                     )
@@ -390,7 +414,25 @@ def delete_user(user_id):
         cursor.close()
         conn.close()
     except Exception as e:
-        print(f"Error removing user: {e}")
+        print(f"Error deactivating user: {e}")
+
+def reactivate_user(user_id):
+    """Undo a soft delete — restores login access."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+                        UPDATE users
+                        SET is_active = TRUE
+                        WHERE id = %s
+                    """,(user_id,)
+                    )
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error reactivating user: {e}")
 
 def change_role(role,user_id):
     try:
@@ -416,7 +458,7 @@ def fetch_active_sessions():
         cursor = conn.cursor(cursor_factory = RealDictCursor)
 
         cursor.execute("""
-                        SELECT u.username,u.role,s.ip_address,s.id,s.login_at
+                        SELECT u.username,u.role,s.ip_address,s.id,TO_CHAR(s.login_at, 'YYYY-MM-DD HH24:MI') AS login_at
                         FROM active_sessions s
                         JOIN users u ON u.id = s.user_id
                         WHERE s.is_active = TRUE
@@ -474,7 +516,7 @@ def fetch_audit_log():
         cursor = conn.cursor(cursor_factory = RealDictCursor)
 
         cursor.execute("""
-                        SELECT a.id, u.username, a.action, a.target_table, a.target_id, a.details, a.created_at
+                        SELECT a.id, u.username, a.action, a.target_table, a.target_id, a.details, TO_CHAR(a.created_at, 'YYYY-MM-DD HH24:MI') AS created_at
                         FROM audit_log a
                         LEFT JOIN users u ON u.id = a.user_id
                         ORDER BY a.created_at DESC

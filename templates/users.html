@@ -12,6 +12,7 @@
         <tr>
           <th>Username</th>
           <th>Role</th>
+          <th>Status</th>
           <th>Created</th>
           <th></th>
         </tr>
@@ -22,7 +23,7 @@
           <td class="cell-pad cell-primary">{{ u.username }}</td>
           <td class="cell-pad">
             <form method="POST" action="{{ url_for('change_user_role', user_id=u.id) }}" style="display:inline;">
-              <select class="input-field" name="role" style="width:auto; padding:4px 8px; font-size:12px;" onchange="this.form.submit()">
+              <select class="input-field" name="role" style="width:auto; padding:4px 8px; font-size:12px;" onchange="this.form.submit()" {{ 'disabled' if not u.is_active }}>
                 <option value="analyst" {{ 'selected' if u.role == 'analyst' }}>Analyst</option>
                 <option value="manager" {{ 'selected' if u.role == 'manager' }}>Manager</option>
                 <option value="auditor" {{ 'selected' if u.role == 'auditor' }}>Auditor</option>
@@ -30,15 +31,25 @@
               </select>
             </form>
           </td>
+          <td class="cell-pad">
+            {% if u.is_active %}<span class="badge badge-low">Active</span>
+            {% else %}<span class="badge badge-neutral">Deactivated</span>{% endif %}
+          </td>
           <td class="cell-pad mono cell-muted">{{ u.created_at }}</td>
           <td class="cell-pad" style="text-align:right;">
-            <form method="POST" action="{{ url_for('remove_user', user_id=u.id) }}" onsubmit="return confirm('Delete {{ u.username }}? This cannot be undone.');" style="display:inline;">
-              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            {% if u.is_active %}
+            <form method="POST" action="{{ url_for('remove_user', user_id=u.id) }}" onsubmit="return confirm('Deactivate {{ u.username }}? They will not be able to log in.');" style="display:inline;">
+              <button type="submit" class="btn btn-sm btn-danger">Deactivate</button>
             </form>
+            {% else %}
+            <form method="POST" action="{{ url_for('reactivate_user_route', user_id=u.id) }}" style="display:inline;">
+              <button type="submit" class="btn btn-sm">Reactivate</button>
+            </form>
+            {% endif %}
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="4"><div class="empty-state"><div class="empty-title">No users</div></div></td></tr>
+        <tr><td colspan="5"><div class="empty-state"><div class="empty-title">No users</div></div></td></tr>
         {% endfor %}
       </tbody>
     </table>

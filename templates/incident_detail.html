@@ -31,8 +31,8 @@
           <div class="kv-row"><span class="kv-key">Command</span><span class="kv-val">{{ incident.command or '—' }}</span></div>
           {% endif %}
           <div class="kv-row"><span class="kv-key">Status</span><span class="kv-val">{{ incident.status }}</span></div>
-          <div class="kv-row"><span class="kv-key">Detected</span><span class="kv-val">{{ incident.created_at }}</span></div>
-          {% if incident.event_time %}<div class="kv-row"><span class="kv-key">Event time</span><span class="kv-val">{{ incident.event_time }}</span></div>{% endif %}
+          <div class="kv-row"><span class="kv-key">Detected</span><span class="kv-val">{{ incident.created_at_display }}</span></div>
+          {% if incident.event_time_display %}<div class="kv-row"><span class="kv-key">Event time</span><span class="kv-val">{{ incident.event_time_display }}</span></div>{% endif %}
         </div>
         {% if incident.description %}
         <p style="margin-top:16px; color:var(--text-secondary); font-size:13.5px; line-height:1.6;">{{ incident.description }}</p>
