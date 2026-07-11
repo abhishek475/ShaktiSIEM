@@ -1,6 +1,6 @@
 <div align="center">
 
-# ShaktiSIEM
+# 🛡️ ShaktiSIEM
 
 ### A lightweight, role-based Security Information & Event Management console
 
