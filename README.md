@@ -158,4 +158,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Author
 
-Built by **[Your Name]** — a hands-on project exploring Python, Flask, PostgreSQL/ShaktiDB, and security-operations concepts.
+Built by **[Abhishek Nair J]** — a hands-on project exploring Python, Flask, PostgreSQL/ShaktiDB, and security-operations concepts.
