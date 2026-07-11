@@ -137,7 +137,7 @@ ShaktiSIEM/
 ├── inotify_monitor.py      # Filesystem-watch detection engine
 ├── templates/              # Jinja2 templates
 ├── static/css/             # Stylesheet
-├── scripts/                # Setup scripts & SQL migrations
+├── scripts/                # Setup scripts
 └── docs/screenshots/       # README images
 ```
 
