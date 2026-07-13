@@ -116,7 +116,7 @@ psql -h 127.0.0.1 -U <db_user> -d shaktisiem -f scripts/audit_table.sql
 psql -h 127.0.0.1 -U <db_user> -d shaktisiem -f scripts/add_is_active_to_users.sql
 
 # 3. Create your first admin user
-python3 scripts/create_admin.py
+python3 scripts/create_user.py
 
 # 4. Run the console
 python3 app.py            # then visit http://localhost:5000/login
