@@ -63,7 +63,7 @@ ShaktiSIEM watches a Linux host for security-relevant events — failed logins, 
                       ▼
                ┌──────────────┐
                │   ShaktiDB   │◄────────────┐
-               │ (PostgreSQL) │             │
+               │              │
                └──────┬───────┘             │
                       ▼                     │
                ┌──────────────┐             │
